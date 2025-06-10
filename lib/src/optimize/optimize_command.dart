@@ -222,15 +222,12 @@ class OptimizeCommand extends Command<void> {
     _enableVConsole = argResults!['enable-vconsole'];
   }
 
-  /// 初始化isolate通信
+  /// 初始化 isolate 通信
   Future<void> _initIsolate() {
-    if (_plugin.isEmpty) {
-      return Future<void>.value();
-    }
+    if (_plugin.isEmpty) return Future.value();
 
-    final Completer<void> completer = Completer<void>();
-    final StreamController<IsolateMessageProtocol> controller =
-        StreamController<IsolateMessageProtocol>.broadcast();
+    final completer = Completer<void>();
+    final controller = StreamController<IsolateMessageProtocol>.broadcast();
     _message = controller.stream;
 
     _receivePort ??= ReceivePort();
@@ -238,19 +235,21 @@ class OptimizeCommand extends Command<void> {
       if (message is SendPort) {
         _sendPort = message;
         completer.complete();
-      }
-
-      if (message is Map<String, Object>) {
+      } else if (message is Map<String, Object>) {
         Logger.info('server isolate get message: $message');
         controller.add(IsolateMessageProtocol.fromMap(message));
       }
     });
 
+    // Convert UnmodifiableListView<String> to a normal List<String>
+    final List<String> argsList = argResults!.arguments.toList();
+
     Isolate.spawnUri(
       Uri.file(_plugin),
-      argResults!.arguments,
+      argsList,
       _receivePort!.sendPort,
     );
+
     return completer.future;
   }
 
